@@ -15,6 +15,7 @@ import {
 import { supabase } from '../../services/supabase';
 import ExtrasManager from './ExtrasManager';
 import VariationsManager from './VariationsManager'; // NOVO!
+import { compressImage } from '../../utils/imageCompression';
 
 const ProductManager: React.FC = () => {
   const { currentRestaurant, categories } = useRestaurantStore();
@@ -82,10 +83,15 @@ const ProductManager: React.FC = () => {
     }
 
     try {
-      // Comprimir imagem antes de subir
-      const compressedFile = await compressImage(file);
+      // Comprimir imagem antes de subir usando o novo utilitário
+      const compressedFile = await compressImage(file, {
+        maxSizeMB: 0.5,
+        maxWidthOrHeight: 1200,
+        quality: 0.85,
+        format: 'webp'
+      });
       
-      const fileExt = file.name.split('.').pop();
+      const fileExt = 'webp';
       const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
       const filePath = `${currentRestaurant.id}/${fileName}`;
 
@@ -113,62 +119,7 @@ const ProductManager: React.FC = () => {
     }
   };
 
-  // Função auxiliar para comprimir imagem
-  const compressImage = (file: File): Promise<File> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = (event) => {
-        const img = new Image();
-        img.src = event.target?.result as string;
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          let width = img.width;
-          let height = img.height;
 
-          // Redimensionar se maior que 1200px
-          const MAX_WIDTH = 1200;
-          const MAX_HEIGHT = 1200;
-
-          if (width > height) {
-            if (width > MAX_WIDTH) {
-              height = height * (MAX_WIDTH / width);
-              width = MAX_WIDTH;
-            }
-          } else {
-            if (height > MAX_HEIGHT) {
-              width = width * (MAX_HEIGHT / height);
-              height = MAX_HEIGHT;
-            }
-          }
-
-          canvas.width = width;
-          canvas.height = height;
-
-          const ctx = canvas.getContext('2d');
-          ctx?.drawImage(img, 0, 0, width, height);
-
-          canvas.toBlob(
-            (blob) => {
-              if (blob) {
-                const compressedFile = new File([blob], file.name, {
-                  type: 'image/jpeg',
-                  lastModified: Date.now(),
-                });
-                resolve(compressedFile);
-              } else {
-                reject(new Error('Erro ao comprimir imagem'));
-              }
-            },
-            'image/jpeg',
-            0.85 // 85% de qualidade
-          );
-        };
-        img.onerror = reject;
-      };
-      reader.onerror = reject;
-    });
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
